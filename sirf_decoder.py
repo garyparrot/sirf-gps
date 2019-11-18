@@ -18,6 +18,14 @@ class SiRF_receiver(object):
     def __init__(self, serial_gps):
         self.serial = serial_gps
 
+    def pollClockStatus(self):
+        """Ask Device to response a clock status message(MID 7){{{"""
+        sequence = b'\x90\x00'
+        message = self.encapsulate(sequence)
+        
+        self.sendInput(message)
+        # }}}
+
     def setMessageRate(self, mid, rate):
         """Set setting the output rate for specific message{{{"""
         if mid > 255 or 0 > mid:
@@ -109,7 +117,7 @@ class SiRF_receiver(object):
         length, bytedata = self.readRawMessage()
 
         if not bytedata[0] in _sirf_decode_function:
-            return bytedata[0]
+            return { "mid": int(bytedata[0]), "rawdata": bytedata }
 
         return _sirf_decode_function[bytedata[0]](length, bytedata)
 
@@ -171,7 +179,7 @@ def sirf_30(length, bytecode):
             "xvelocity"     : sirf_double(bytecode[34:42]),
             "yvelocity"     : sirf_double(bytecode[42:50]),
             "zvelocity"     : sirf_double(bytecode[50:58]),
-            "clockbias"     : sirf_double(bytecode[58:66]),
+            "clockBias"     : sirf_double(bytecode[58:66]),
             "clockdrift"    : sirf_float(bytecode[66:70]),
             "ephflag"       : sirf_int(bytecode[71:72], False),
             "iDelay"        : sirf_float(bytecode[79:83]),
@@ -211,9 +219,17 @@ def sirf_28(length, bytecode):
             "pseudorange"   : sirf_double(bytecode[15:23]),
             }
 
+def sirf_7(length, bytecode):
+    return {
+            "mid"           : sirf_int(bytecode[0:1], False),
+            "svs"           : sirf_int(bytecode[7:8], False),
+            "clockBias"     : sirf_int(bytecode[12:16], False),
+            }
+
 _sirf_decode_function = {
     2 : sirf_2,
     6 : sirf_6,
+    7 : sirf_7,
     11: sirf_11,
     12: sirf_12,
     30: sirf_30,
